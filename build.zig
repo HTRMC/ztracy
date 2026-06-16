@@ -33,6 +33,19 @@ pub fn build(b: *std.Build) void {
         }
     }
 
+    const example = b.addExecutable(.{
+        .name = "example",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("example/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "ztracy", .module = mod }},
+        }),
+    });
+    const run_example = b.addRunArtifact(example);
+    if (b.args) |args| run_example.addArgs(args);
+    b.step("run-example", "Build and run the example").dependOn(&run_example.step);
+
     const mod_tests = b.addTest(.{ .root_module = mod });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
