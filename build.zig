@@ -25,11 +25,15 @@ pub fn build(b: *std.Build) void {
         });
         mod.link_libcpp = true;
 
-        // Tracy's client opens a socket and reads symbols; pull in the
-        // platform libs it needs.
-        if (target.result.os.tag == .windows) {
-            mod.linkSystemLibrary("ws2_32", .{});
-            mod.linkSystemLibrary("dbghelp", .{});
+        switch (target.result.os.tag) {
+            .windows => {
+                mod.linkSystemLibrary("ws2_32", .{});
+                mod.linkSystemLibrary("dbghelp", .{});
+            },
+            // dl covers dladdr; pthread/libc come in via libc++.
+            // Add libunwind here only if you turn on TRACY_CALLSTACK.
+            .linux => mod.linkSystemLibrary("dl", .{}),
+            else => {},
         }
     }
 
