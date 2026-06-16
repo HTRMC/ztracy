@@ -1,8 +1,6 @@
 name: tracy-update
 
 on:
-  schedule:
-    - cron: "0 6 * * 1" # heartbeat: Mondays 06:00 UTC
   workflow_dispatch: # manual "Run workflow" button
   repository_dispatch: # event-driven: POST from an external release watcher
     types: [tracy-release]
