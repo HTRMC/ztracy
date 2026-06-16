@@ -18,23 +18,37 @@ pub fn build(b: *std.Build) void {
 
     if (enable) {
         const tracy = b.dependency("tracy", .{});
-        mod.addIncludePath(tracy.path("public"));
-        mod.addCSourceFile(.{
-            .file = tracy.path("public/TracyClient.cpp"),
-            .flags = &.{"-DTRACY_ENABLE"},
+
+        // One shared Tracy client so multiple linking artifacts (e.g. an exe
+        // plus a hot-reload dll) share a single profiling instance. Baking
+        // TracyClient.cpp into the module gives each artifact its own client
+        // and only one binds the listen socket.
+        const client = b.addLibrary(.{
+            .name = "tracy",
+            .linkage = .dynamic,
+            .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
         });
-        mod.link_libcpp = true;
+        client.root_module.addIncludePath(tracy.path("public"));
+        client.root_module.addCSourceFile(.{
+            .file = tracy.path("public/TracyClient.cpp"),
+            .flags = &.{ "-DTRACY_ENABLE", "-DTRACY_EXPORTS" },
+        });
+        client.root_module.link_libcpp = true;
 
         switch (target.result.os.tag) {
             .windows => {
-                mod.linkSystemLibrary("ws2_32", .{});
-                mod.linkSystemLibrary("dbghelp", .{});
+                client.root_module.linkSystemLibrary("ws2_32", .{});
+                client.root_module.linkSystemLibrary("dbghelp", .{});
             },
             // dl covers dladdr; pthread/libc come in via libc++.
             // Add libunwind here only if you turn on TRACY_CALLSTACK.
-            .linux => mod.linkSystemLibrary("dl", .{}),
+            .linux => client.root_module.linkSystemLibrary("dl", .{}),
             else => {},
         }
+        b.installArtifact(client);
+
+        mod.addIncludePath(tracy.path("public"));
+        mod.linkLibrary(client);
     }
 
     const example = b.addExecutable(.{

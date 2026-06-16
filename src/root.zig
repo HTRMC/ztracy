@@ -10,6 +10,7 @@ pub const enabled = @import("ztracy_options").enable;
 
 const c = if (enabled) @cImport({
     @cDefine("TRACY_ENABLE", "1");
+    @cDefine("TRACY_IMPORTS", "1");
     @cInclude("tracy/TracyC.h");
 }) else struct {};
 
