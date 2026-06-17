@@ -31,7 +31,12 @@ pub fn build(b: *std.Build) void {
         client.root_module.addIncludePath(tracy.path("public"));
         client.root_module.addCSourceFile(.{
             .file = tracy.path("public/TracyClient.cpp"),
-            .flags = &.{ "-DTRACY_ENABLE", "-DTRACY_EXPORTS" },
+            // -fno-sanitize=undefined: don't UBSan vendored Tracy. Its bundled
+            // libbacktrace casts a ULEB128 straight into `enum dwarf_tag`
+            // (dwarf.cpp), which traps under Zig's default UBSan when parsing
+            // DWARF 5 emitted by Zig 0.16. Bounds-checked reads make it benign;
+            // the trap is the only failure. Upstream ships it un-sanitized.
+            .flags = &.{ "-DTRACY_ENABLE", "-DTRACY_EXPORTS", "-fno-sanitize=undefined" },
         });
         client.root_module.link_libcpp = true;
 
